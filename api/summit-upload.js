@@ -23,28 +23,33 @@ module.exports = async (req, res) => {
   try {
     const saJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
     const sheetId = process.env.GOOGLE_SHEETS_ID;
+
     const host = process.env.SUMMIT_SFTP_HOST;
     const port = Number(process.env.SUMMIT_SFTP_PORT || '22');
     const username = process.env.SUMMIT_SFTP_USERNAME;
     const password = process.env.SUMMIT_SFTP_PASSWORD;
-    const remotePath = process.env.SUMMIT_SFTP_REMOTE_PATH || '/ar2/armadillo_inventory.csv';
+    const remotePath =
+      process.env.SUMMIT_SFTP_REMOTE_PATH || '/ar2/armadillo_inventory.csv';
 
-    if (!saJson || !sheetId || !host || !username || !password) {
-      throw new Error('Missing required env vars');
+    if (!saJson || !sheetId) {
+      throw new Error(
+        'Missing Google env vars (GOOGLE_SERVICE_ACCOUNT_JSON or GOOGLE_SHEETS_ID)'
+      );
     }
 
     const creds = JSON.parse(saJson);
 
-    const jwt = new google.auth.JWT(
-      creds.client_email,
-      undefined,
-      creds.private_key,
-      ['https://www.googleapis.com/auth/spreadsheets.readonly']
-    );
+    // 🔑 Use GoogleAuth with service account credentials
+    const auth = new google.auth.GoogleAuth({
+      credentials: creds,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+    });
 
-    const sheets = google.sheets({ version: 'v4', auth: jwt });
+    const client = await auth.getClient();
 
-    // Read the "Summit Feed" sheet
+    const sheets = google.sheets({ version: 'v4', auth: client });
+
+    // Read "Summit Feed"!A1:C
     const range = `'Summit Feed'!A1:C`;
     const resp = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
@@ -56,17 +61,27 @@ module.exports = async (req, res) => {
       throw new Error('No data in Summit Feed sheet');
     }
 
+    // If SFTP env missing, report that but confirm Google is working
+    if (!host || !username || !password) {
+      return res.status(200).json({
+        ok: false,
+        stage: 'google-ok',
+        rows: values.length - 1,
+        error: 'SFTP env vars missing (host/username/password)',
+      });
+    }
+
     const csv = makeCsv(values);
 
     const sftp = new SftpClient();
     await sftp.connect({ host, port, username, password });
-
     await sftp.put(Buffer.from(csv, 'utf8'), remotePath);
     await sftp.end();
 
     return res.status(200).json({
       ok: true,
-      rows: values.length - 1, // minus header
+      stage: 'upload-complete',
+      rows: values.length - 1,
       remotePath,
     });
   } catch (err) {
