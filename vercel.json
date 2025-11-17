@@ -1,0 +1,9 @@
+{
+    "crons": [
+      {
+        "path": "/api/summit-upload",
+        "schedule": "0 12 * * 1-5"
+      }
+    ]
+  }
+  

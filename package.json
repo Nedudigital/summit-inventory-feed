@@ -1,0 +1,16 @@
+{
+  "name": "summit-inventory-feed",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "googleapis": "^166.0.0",
+    "ssh2-sftp-client": "^12.0.1"
+  }
+}
