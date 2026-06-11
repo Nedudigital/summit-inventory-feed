@@ -50,7 +50,7 @@ module.exports = async (req, res) => {
     const sheets = google.sheets({ version: 'v4', auth: client });
 
     // Read "Summit Feed"!A1:C
-    const range = 'Summit Feed'!A1:P;
+    const range = 'Summit Feed'!A1:F;
     const resp = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
       range,
